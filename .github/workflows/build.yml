@@ -1,0 +1,156 @@
+name: Build Poco F3 Kernel
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_USER: "Human"
+  BUILD_HOST: "HumanVoid"
+  SUPERKEY: "12345678"
+   
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Скачивание исходников ядра
+        uses: actions/checkout@v7
+        with:
+          repository: thv1622/kernel_xiaomi_sm8250
+          ref: aosp-16-test
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Установка необходимых библиотек и пакетов
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            curl \
+            flex \
+            git \
+            gnupg \
+            libelf-dev \
+            libssl-dev \
+            lz4 \
+            liblz4-tool \
+            ncurses-dev \
+            python3 \
+            python-is-python3 \
+            u-boot-tools \
+            zip \
+            unzip \
+            zlib1g-dev
+
+      - name: Настройка Python
+        run: |
+          sudo ln -sf /usr/bin/python3 /usr/bin/python
+          sudo ln -sf /usr/bin/python3 /usr/bin/python2
+          python --version
+          python2 --version
+
+      - name: Проверка и скачивание libufdt (mkdtboimg)
+        run: |
+          if [ ! -f scripts/ufdt/libufdt/utils/src/mkdtboimg.py ]; then
+            echo "libufdt не найден, скачиваем актуальную версию из AOSP..."
+            rm -rf scripts/ufdt/libufdt
+            git clone https://android.googlesource.com/platform/system/libufdt scripts/ufdt/libufdt
+          fi
+          sed -i 's/xrange/range/g' scripts/ufdt/libufdt/utils/src/mkdtboimg.py
+
+      - name: Download and Extract Clang
+        run: |
+          mkdir -p clang
+          wget -q https://github.com/ZyCromerZ/Clang/releases/download/16.0.6-20260807-release/Clang-16.0.6-20260807.tar.gz
+          tar -xf Clang-16.0.6-20260807.tar.gz -C clang
+          rm Clang-16.0.6-20260807.tar.gz
+          
+          echo "Версия Clang:"
+          ./clang/bin/clang --version
+
+      - name: Сборка ядра
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          
+          export KBUILD_BUILD_USER="${{ env.BUILD_USER }}"
+          export KBUILD_BUILD_HOST="${{ env.BUILD_HOST }}"
+          
+          MAKE_FLAGS=(
+            O=out
+            ARCH=arm64
+            SUBARCH=arm64
+            CC=clang
+            CROSS_COMPILE=aarch64-linux-gnu-
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+            LLVM=1
+            LLVM_IAS=1
+          )
+          
+          mkdir -p out
+          
+          make "${MAKE_FLAGS[@]}" alioth_defconfig
+          make "${MAKE_FLAGS[@]}" olddefconfig
+          make -j$(nproc --all) "${MAKE_FLAGS[@]}" Image dtbs dtbo.img
+
+      - name: Подготовка артефактов (Image, DTB, DTBO)
+        run: |
+          mkdir -p output
+          
+          # 1. Копирование оригинальных файлов ядра (Image)
+          find out/arch/arm64/boot/ -maxdepth 1 -name "Image*" -type f -exec cp {} output/ \;
+          
+          # 2. Поиск и сборка DTB (ищет файлы .dtb во всех подпапках boot)
+          DTB_FILES=$(find out/arch/arm64/boot/ -name "*.dtb" -type f)
+          
+          if [ -n "$DTB_FILES" ]; then
+            echo "Найдены скомпилированные DTB файлы:"
+            echo "$DTB_FILES"
+            # Копируем отдельные .dtb файлы в output/
+            cp $DTB_FILES output/
+            # Объединяем их в единый dtb для AnyKernel3
+            cat $DTB_FILES > output/dtb
+          elif [ -f out/arch/arm64/boot/dtb.img ]; then
+            cp out/arch/arm64/boot/dtb.img output/dtb
+          elif [ -f out/arch/arm64/boot/dtb ]; then
+            cp out/arch/arm64/boot/dtb output/dtb
+          fi
+          
+          # 3. Поиск и копирование DTBO
+          if [ -f out/arch/arm64/boot/dtbo.img ]; then
+            cp out/arch/arm64/boot/dtbo.img output/
+          elif [ -f out/arch/arm64/boot/dtbo ]; then
+            cp out/arch/arm64/boot/dtbo output/
+          fi
+
+      - name: Патчинг ядра через KernelPatch 
+        run: |
+          curl -LO "https://github.com/bmax121/KernelPatch/releases/download/0.13.8/kptools-linux"
+          curl -LO "https://github.com/bmax121/KernelPatch/releases/download/0.13.8/kpimg-android"
+          chmod +x kptools-linux
+          
+          if [ -f output/Image ]; then
+            echo "Патчим output/Image с ключом SUPERKEY..."
+            ./kptools-linux -p -i output/Image -k kpimg-android --skey "${{ env.SUPERKEY }}" -o output/Image-patched
+            
+            if [ -f output/Image.gz ]; then
+              gzip -9 -c output/Image-patched > output/Image-patched.gz
+            fi
+            echo "Ядро успешно пропатчено!"
+          else
+            echo "Ошибка: output/Image не найден для патчинга!"
+            exit 1
+          fi
+
+      - name: Упаковка и загрузка артефакта
+        run: |
+          cd output
+          zip -r ../redline-alioth.zip ./*
+          cd ..
+
+      - name: Загрузка артефакта на GitHub
+        uses: actions/upload-artifact@v7
+        with:
+          name: redline-alioth
+          path: redline-alioth.zip
