@@ -1,0 +1,67 @@
+name: Integrate NoMount
+
+on:
+  workflow_dispatch: # Кнопка ручного запуска на сайте GitHub
+
+jobs:
+  integrate-nomount:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: aosp-16-test
+          submodules: recursive
+
+      - name: Setup Git Identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Physical Integration of NoMount (Method 3)
+        run: |
+          echo "--> 1. Скачиваем NoMount во временную папку..."
+          rm -rf /tmp/nomount_repo fs/nomount
+          git clone -b master https://github.com/maxsteeel/nomount /tmp/nomount_repo
+
+          echo "--> 2. Физически создаем fs/nomount и копируем файлы..."
+          mkdir -p fs/nomount
+          cp -rf /tmp/nomount_repo/kernel/src/* fs/nomount/
+          rm -rf /tmp/nomount_repo
+
+          echo "--> 3. Проверяем скопированные файлы:"
+          ls -la fs/nomount/
+
+      - name: Patch Kbuild files
+        run: |
+          echo "--> 4. Патчим fs/Kconfig и fs/Makefile..."
+          
+          if ! grep -q "fs/nomount/Kconfig" fs/Kconfig; then
+            echo 'source "fs/nomount/Kconfig"' >> fs/Kconfig
+          fi
+
+          if ! grep -q "CONFIG_NOMOUNT" fs/Makefile; then
+            echo 'obj-$(CONFIG_NOMOUNT) += nomount/' >> fs/Makefile
+          fi
+
+      
+      - name: Force Commit and Push to Repository
+        run: |
+          echo "--> 6. Фиксируем физические файлы в репозитории..."
+          
+          # Принудительно индексируем созданную папку и файлы
+          git add -f fs/nomount/
+          git add -f fs/Kconfig fs/Makefile arch/arm64/configs/
+
+          echo "--> Текущий статус гита перед коммитом:"
+          git status
+
+          if git status --porcelain | grep -q .; then
+            git commit -m "(nomount): physically add NoMount sources to fs/nomount"
+            git push origin HEAD:${{ github.ref_name }}
+            echo "🎉 УСПЕХ! Все файлы NoMount физически добавлены в ваш репозиторий!"
+          else
+            echo "⚠️ Изменения не найдены или уже были применены."
+          fi
