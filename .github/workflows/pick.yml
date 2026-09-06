@@ -1,0 +1,37 @@
+name: Cherry Pick Commit
+
+on:
+  workflow_dispatch: # Запуск вручную из вкладки Actions
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Чекaут текущего репозитория
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Полная история для корректного черипика
+          ref: aosp-16-test
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Подключение репозитория автора и Cherry-Pick
+        run: |
+          # 1. Добавляем remote автора
+          git remote add upstream https://github.com/Rve27/android_kernel_xiaomi_sm8250.git
+          
+          # 2. Скачиваем коммиты из upstream
+          git fetch upstream
+
+          # 3. Применяем нужный коммит
+          git cherry-pick 9f7d2a9f09887f1904fbad66b24e237a4a94edd5
+
+      - name: Пуш изменений в свой репозиторий
+        run: |
+          git push origin ${{ github.ref_name }}
