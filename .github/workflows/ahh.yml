@@ -1,0 +1,47 @@
+name: Setup backslashxx KernelSU
+
+on:
+  workflow_dispatch: # Запуск вручную из вкладки Actions
+
+jobs:
+  setup-ksu:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Чекaут текущего репозитория
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ksu-test1
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Добавление сабмодуля и запуск setup.sh
+        run: |
+          # 1. Добавляем репозиторий backslashxx/KernelSU как сабмодуль в корень (ветка master)
+          git submodule add -b master https://github.com/backslashxx/KernelSU.git KernelSU
+          git submodule update --init --recursive
+
+          # 2. Делаем скрипт исполняемым и запускаем его
+          chmod +x KernelSU/kernel/setup.sh
+          bash KernelSU/kernel/setup.sh
+
+      - name: Создание drivers/kernelsu и копирование исходников
+        run: |
+         # 4. Создаем директорию и копируем файлы из KernelSU/kernel
+          mkdir -p drivers/kernelsu
+          cp -r KernelSU/kernel/* drivers/kernelsu/
+
+      - name: Фиксация и пуш изменений
+        run: |
+          # 5. Добавляем все изменения и делаем коммит
+          git add .
+          git commit -m "drivers: add backslashxx KernelSU integration" || echo "Нет изменений для коммита"
+          
+          # 6. Пушим в текущую ветку
+          git push origin ${{ github.ref_name }}
