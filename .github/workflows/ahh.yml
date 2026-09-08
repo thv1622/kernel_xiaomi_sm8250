@@ -34,8 +34,8 @@ jobs:
       - name: Создание drivers/kernelsu и копирование исходников
         run: |
          # 4. Создаем директорию и копируем файлы из KernelSU/kernel
-          mkdir -p drivers/kernelsu
-          cp -r KernelSU/kernel/* drivers/kernelsu/
+          mkdir -p drivers/kernelsu_ap
+          cp -r KernelSU/kernel/* drivers/kernelsu_ap/
 
       - name: Фиксация и пуш изменений
         run: |
