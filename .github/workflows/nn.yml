@@ -1,0 +1,38 @@
+name: Cherry-pick Commit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Чекaут текущего репозитория
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: test-new
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Подключение стороннего репозитория и cherry-pick коммита
+        run: |
+          # 1. Добавляем сторонний репозиторий как remote
+          git remote add tsaritsa https://github.com/Tsaritsa-Prjkt/android_kernel_xiaomi_sm8250.git
+
+          # 2. Скачиваем его историю
+          git fetch tsaritsa
+
+          # 3. Выполняем cherry-pick конкретного коммита
+          git cherry-pick 92ef860d12de50311829821ac50ee62c7040d64e
+
+      - name: Пуш изменений в репозиторий
+        run: |
+          # 4. Отправляем примененный коммит в текущую ветку
+          git push origin ${{ github.ref_name }}
