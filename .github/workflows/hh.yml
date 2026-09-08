@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: thv1622/kernel_xiaomi_sm8250
-          ref: ksu-test1
+          ref: test-new
           fetch-depth: 0
           submodules: recursive
 
@@ -59,13 +59,19 @@ jobs:
           fi
           sed -i 's/xrange/range/g' scripts/ufdt/libufdt/utils/src/mkdtboimg.py
 
-      - name: Download and Extract Clang
+      - name: Download and Extract Neutron Clang
         run: |
+          # 2. Создаем целевую директорию
           mkdir -p clang
-          wget -q https://github.com/ZyCromerZ/Clang/releases/download/16.0.6-20260807-release/Clang-16.0.6-20260807.tar.gz
-          tar -xf Clang-16.0.6-20260807.tar.gz -C clang
-          rm Clang-16.0.6-20260807.tar.gz
-          
+
+          # 3. Скачиваем Neutron Clang
+          wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst
+
+          # 4. Распаковываем .tar.zst в папку clang и удаляем архив
+          tar -I zstd -xf neutron-clang-06092026.tar.zst -C clang
+          rm neutron-clang-06092026.tar.zst
+
+          # 5. Проверяем версию
           echo "Версия Clang:"
           ./clang/bin/clang --version
 
