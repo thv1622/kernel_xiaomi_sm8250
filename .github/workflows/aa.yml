@@ -1,0 +1,46 @@
+name: Cherry-Pick Commits
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Чекaут текущего репозитория
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: test-new1
+          submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Подключение чужого репозитория
+        run: |
+          # Укажи ссылку на сторонний репозиторий вместо ЗАГЛУШКА_URL_РЕПОЗИТОРИЯ
+          git remote add external_repo https://github.com/IzumiYouka/android_kernel_xiaomi_sm8250.git
+          git fetch external_repo --no-recurse-submodules
+
+      - name: Черри-пик списка коммитов
+        run: |
+          # Впиши хэши коммитов по порядку применения (от старого к новому)
+          COMMITS=(
+            "40adb0712fc3f493c96dc21f837d11db024314cd"
+            "eb484534e11020b1f50424dc3a81dd8f9e04041e"
+            "4d777467cd9c561cbe100fd2b95a13f40e3bd9df"
+          )
+
+          for COMMIT in "${COMMITS[@]}"; do
+            echo "Применяем коммит: $COMMIT"
+            git cherry-pick $COMMIT
+          done
+
+      - name: Пуш в репозиторий
+        run: |
+          git push origin ${{ github.ref_name }}
