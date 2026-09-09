@@ -31,9 +31,9 @@ jobs:
         run: |
           # Впиши хэши коммитов по порядку применения (от старого к новому)
           COMMITS=(
-            "5b4210bd4f7cb6d8f84b8118e79b5341406b8de0"
             "dee988c11aa7b338dd8d8d4e34d186bc0c52531e"
             "0ad0579881d20895d8aae3cacc116fdc427fccb5"
+            "5646f8b8e9a4e434e5d591bf7c760ff378d383c6"
           )
 
           for COMMIT in "${COMMITS[@]}"; do
