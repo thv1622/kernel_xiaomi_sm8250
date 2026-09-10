@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: test-new
+          ref: test-new1
           submodules: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -24,13 +24,13 @@ jobs:
       - name: Подключение стороннего репозитория и cherry-pick коммита
         run: |
           # 1. Добавляем сторонний репозиторий как remote
-          git remote add tsaritsa https://github.com/Tsaritsa-Prjkt/android_kernel_xiaomi_sm8250.git
+          git remote add raikiri https://github.com/Sayemx18/kernel_xiaomi_sm8250.git
 
           # 2. Скачиваем его историю
-          git fetch tsaritsa
+          git fetch raikiri
 
           # 3. Выполняем cherry-pick конкретного коммита
-          git cherry-pick 92ef860d12de50311829821ac50ee62c7040d64e
+          git cherry-pick e6321d5e359f7854e5344f837f63085aee2366f2
 
       - name: Пуш изменений в репозиторий
         run: |
