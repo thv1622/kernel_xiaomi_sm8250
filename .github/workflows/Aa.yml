@@ -1,10 +1,10 @@
-name: Rebuild drivers/kernelsu Folder
+name: Revert Commit
 
 on:
   workflow_dispatch:
 
 jobs:
-  rebuild-ksu-folder:
+  revert:
     runs-on: ubuntu-latest
 
     steps:
@@ -12,8 +12,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ksu-test1
-          submodules: recursive
+          ref: test-new1
+          submodules: recursive 
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Настройка Git
@@ -21,21 +21,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Обновление сабмодуля
+      - name: Выполнение git revert
         run: |
-          git submodule update --init --recursive
+          # Отменяем конкретный коммит без открытия редактора
+          git revert --no-edit 0cb69b696c342df4768288b7b8e1949dc999a122
 
-      - name: Пересоздание физической папки drivers/kernelsu
+      - name: Пуш изменений в репозиторий
         run: |
-          # Удаляем битую папку с потерянными файлами
-          rm -rf drivers/kernelsu
-
-          # Создаем чистую папку и полностью копируем исходники из KernelSU/kernel
-          mkdir -p drivers/kernelsu
-          cp -r KernelSU/kernel/* drivers/kernelsu/
-
-      - name: Пуш обновленной папки
-        run: |
-          git add drivers/kernelsu
-          git commit -m "fix: restore missing files in drivers/kernelsu" || echo "Нет изменений"
           git push origin ${{ github.ref_name }}
