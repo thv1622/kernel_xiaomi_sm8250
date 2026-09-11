@@ -1,0 +1,59 @@
+name: Update KernelSU and Drivers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-ksu:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Чекaут репозитория
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: test-new1
+          submodules: recursive 
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Полная очистка и передобавление KernelSU & Drivers
+        run: |
+          # 1. Сносим старый сабмодуль и его кэш
+          git submodule deinit -f KernelSU || true
+          git rm -rf KernelSU || true
+          rm -rf .git/modules/KernelSU
+
+          # 2. Удаляем старую папку drivers/kernelsu
+          git rm -rf drivers/kernelsu || true
+          rm -rf drivers/kernelsu
+
+          # 3. Добавляем сабмодуль backslashxx (ветка master)
+          git submodule add -b master https://github.com/backslashxx/KernelSU.git KernelSU
+
+          # 4. Обновляем сабмодуль до последнего коммита
+          cd KernelSU
+          git checkout master
+          git pull origin master
+          cd ..
+
+          # 5. Копируем свежие файлы из KernelSU/kernel в drivers/kernelsu
+          mkdir -p drivers/kernelsu
+          cp -r KernelSU/kernel/* drivers/kernelsu/
+
+          # 6. Индексируем новую папку drivers/kernelsu в git
+          git add drivers/kernelsu
+
+      - name: Пуш изменений в репозиторий
+        run: |
+          # Проверяем, есть ли что коммитить
+          if git diff --staged --quiet; then
+            echo "Изменений нет, KernelSU уже последней версии."
+          else
+            git commit -m "ksu: Update KernelSU submodule and drivers to latest master"
+            git push origin ${{ github.ref_name }}
+          fi
