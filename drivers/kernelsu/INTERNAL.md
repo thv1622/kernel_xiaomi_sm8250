@@ -1,6 +1,6 @@
 # Quirks / Adaptations
 ## C-style
-- GNU23, but it should work going back to GNU17 and even GNU11 compilers.
+- GNU23, but written in a way compatible to GNU17/GNU11 compilers.
 - pointer-centric. pointer-heavy. cast-heavy. addresses first, types are suggestions.
 - assumes little endian on everything.
 - some metaprogramming is actually happening (redefines, compat hacks, backports)
